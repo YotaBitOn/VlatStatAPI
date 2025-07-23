@@ -49,65 +49,35 @@ def delete_file(file_path):
     except Exception as e:
         print(f"Сталася помилка: {e}")
 
-
-def channel_activity_plot(channel_id, top:10):
-    filename = f'{channel_id}_chanell_activity.png'
-    df = pd.read_csv(f'{channel_id}_data.csv')
-
-    dates = []
-    for n in range(len(df.created_at)):
-        year = df.created_at[n].split('-')[0]
-        mounth = df.created_at[n].split('-')[1]
-
-        dates.append(f'{year}.{mounth}')
-
-    amount = len(pd.Series(dates).value_counts().values.tolist())
-    dates_counts = pd.Series(dates).value_counts().sort_index().iloc[amount-top:amount]
-
-    x_sa = dates_counts.index.tolist()
-    y_sa = dates_counts.values.tolist()
-
-    fig, ax = plt.subplots()
-
-    sns.barplot(x=x_sa, y=y_sa, color = random.choice(plot_color), ax=ax)
-
-
-    #xlim = ax.get_xlim()
-    #ylim = ax.get_ylim()
-    #ax.imshow(img, extent=[xlim[0], xlim[1], ylim[0], ylim[1]], aspect='auto', zorder=0)
-
-    plt.xticks(rotation=90)
-    plt.savefig(filename, bbox_inches='tight')
-    plt.clf()
-
-    return filename
-
 #bot events
 def user_frequency_plot(channel_id, top:10):
-    filename = f'{channel_id}user_frequency_plot.png'
-    df = pd.read_csv(f'{channel_id}_data.csv')  # data preparation
+    filename = f'{channel_id}_user_frequency_plot.png'
+    df = pd.read_csv(f'{channel_id}_data.csv')
 
     df = df[~df['author'].str.contains('#', na=False)]
 
-    author_counts = df['author'].value_counts(ascending=False).head(top)  # user_frequency
+    author_counts = df['author'].value_counts(ascending=False).head(top)
 
     sns.barplot(x=author_counts.index, y=author_counts.values, color=random.choice(plot_color))
 
-    plt.tight_layout()  # result photo setting
+    plt.tight_layout()
     plt.xticks(rotation=90)
     plt.savefig(filename, bbox_inches='tight')
 
     return filename
     plt.clf()
 
-def user_month_activity_plot(channel_id, user, top):
-    user = str(user)
-    filename = f'{channel_id}user_month_activity_plot.png'
+def month_activity_plot(channel_id, user, top):
     df = pd.read_csv(f'{channel_id}_data.csv')
-    df = df[df['author'] == user]['created_at'].reset_index(drop=True)
-
-    #for i in range(len(df['created_at'])):d
-    #    print(df['created_at'][i])
+    if user:
+        user = str(user)
+        title_text = f"{user} month activity"
+        filename = f'{channel_id}_{user}_month_activity_plot.png'
+        df = df[df['author'] == user]['created_at'].reset_index(drop=True)
+    else:
+        title_text = f"This channel month activity"
+        filename = f'{channel_id}_month_activity_plot.png'
+        df = df['created_at']
     for i in range(len(df)):
         df[i] = '-'.join(df[i].split(' ')[0].split('-')[0:2])
     y = df.value_counts().sort_index().values.tolist()
@@ -115,14 +85,40 @@ def user_month_activity_plot(channel_id, user, top):
 
     sns.barplot(x=x, y=y, color=random.choice(plot_color))
 
-    plt.title(f"{user} month activity")
+    plt.title(title_text)
     plt.tight_layout()  # result photo setting
     plt.xticks(rotation=90)
     plt.savefig(filename, bbox_inches='tight')
     plt.clf()
     return filename
 
+def hour_activity_plot(channel_id, user, top):
 
+    df = pd.read_csv(f'{channel_id}_data.csv')
+
+    if user:
+        user = str(user)
+        filename = f'{channel_id}_{user}_hour_activity_plot.png'
+        title_text = f'{user} hour activity'
+        df = df[df['author'] == user]['created_at'].reset_index(drop=True)
+    else:
+        filename = f'{channel_id}_hour_activity_plot.png'
+        title_text = f'This channel hour activity'
+        df = df['created_at']
+
+    for i in range(len(df)):
+        df[i] = df[i].split(' ')[1].split(':')[0]
+    y = df.value_counts().sort_index().values.tolist()
+    x = df.value_counts().sort_index().index.tolist()
+
+    sns.barplot(x=x, y=y, color=random.choice(plot_color))
+
+    plt.title(title_text)
+    plt.tight_layout()  # result photo setting
+    plt.xticks(rotation=90)
+    plt.savefig(filename, bbox_inches='tight')
+    plt.clf()
+    return filename
 
 
 @bot.event
@@ -185,31 +181,31 @@ async def user_frequency(interaction: discord.Interaction, top: int = 10):
         await interaction.response.send_message('you should /scan this channel first!')
         return
     await interaction.response.send_message(file=discord.File(file_))
-    delete_file(f'{channel_id}user_frequency_plot.png')
+    delete_file(file_)
 
 
-@bot.tree.command(name='channel_activity', description='shows channel activity per moutn')
-async def channel_activity(interaction: discord.Interaction, top: int = 10):
+@bot.tree.command(name='mouth_activity', description='shows activity per month')
+async def mouth_activity(interaction: discord.Interaction, user : discord.Member = None ,top: int = 10):
     channel_id = interaction.channel.id
     try:
-        file_ = channel_activity_plot(channel_id, top)
+        file_ = month_activity_plot(channel_id, user = user, top = top)
     except:
         await interaction.response.send_message('you should /scan this channel first!')
         return
     await interaction.response.send_message(file=discord.File(file_))
-    delete_file(f'{channel_id}_chanell_activity.png')
+    delete_file(file_)
 
-@bot.tree.command(name='user_mouth_activity', description='shows user`s activity per month')
-async def user_mouth_activity(interaction: discord.Interaction, user : discord.Member ,top: int = 10):
+@bot.tree.command(name='hour_activity', description='shows activity per month')
+async def hour_activity(interaction: discord.Interaction, user : discord.Member = None ,top: int = 10):
     channel_id = interaction.channel.id
     try:
-        file_ = user_month_activity_plot(channel_id, user = user, top = top)
+        file_ = hour_activity_plot(channel_id, user = user, top = top)
     except:
         await interaction.response.send_message('you should /scan this channel first!')
         return
     await interaction.response.send_message(file=discord.File(file_))
-    delete_file(f'{channel_id}user_month_activity_plot.png')
 
+    delete_file(file_)
 
 
 @bot.tree.command(name='clear_data', description='clears all data collected by a bot')
